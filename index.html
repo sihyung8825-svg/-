@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bullet Hell Parry Boss</title>
+<style>
+body{margin:0;overflow:hidden;background:#000;color:#fff;font-family:Arial}
+#ui{position:fixed;top:10px;left:10px}
+canvas{display:block;margin:0 auto;background:#111}
+</style>
+</head>
+<body>
+
+  
+시간: 0s
+
+  
+점수: 0
+
+  
+패링 쿨: 0
+
+
+
+<canvas id="game" width="600" height="800"></canvas>
+<script>
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+
+let player={x:350,y:700,size:10,parry:false};
+let bullets=[];
+let mouse={x:350,y:700};
+
+let score=0;
+let parryCount=0; // ✅ 추가
+let startTime=Date.now();
+let lastParry=0;
+const parryCooldown=5000;
+
+const parryDuration = 500;
+
+canvas.addEventListener('mousemove',e=>{
+  const rect=canvas.getBoundingClientRect();
+  mouse.x=e.clientX-rect.left;
+  mouse.y=e.clientY-rect.top;
+});
+
+canvas.addEventListener('click',()=>{
+  if(Date.now()-lastParry>parryCooldown){
+   player.parry=true;
+   lastParry=Date.now();
+   setTimeout(()=>player.parry=false, parryDuration);
+  }
+});
+
+function spawnBullet(speedMultiplier){
+  bullets.push({
+   x:Math.random()*600,
+   y:0,
+   vx:(Math.random()-0.5)*speedMultiplier,
+   vy:2+speedMultiplier,
+   parried:false
+  });
+}
+
+function spawnCirclePattern(cx,cy,count,speed){
+  for(let i=0;i<count;i++){
+   const angle=(Math.PI*2*i)/count;
+   bullets.push({
+     x:cx,
+     y:cy,
+     vx:Math.cos(angle)*speed,
+     vy:Math.sin(angle)*speed,
+     parried:false
+   });
+  }
+}
+
+function update(){
+  player.x+=(mouse.x-player.x)*0.2;
+  player.y+=(mouse.y-player.y)*0.2;
+
+  bullets.forEach(b=>{
+   b.x+=b.vx;
+   b.y+=b.vy;
+
+   let dx=b.x-player.x;
+   let dy=b.y-player.y;
+   let dist=Math.sqrt(dx*dx+dy*dy);
+
+   if(dist<15){
+     if(player.parry && !b.parried){
+      b.vx*=-1.5;
+      b.vy*=-1.5;
+      b.parried=true;
+      parryCount++; // ✅ 패링 횟수 증가
+     } else if(!b.parried){
+      alert('게임 오버');
+      location.reload();
+     }
+   }
+  });
+
+  bullets=bullets.filter(b=>b.x>-50&&b.x<650&&b.y>-50&&b.y<850);
+}
+
+function draw(){
+  ctx.fillStyle='black';
+  ctx.fillRect(0,0,600,800);
+
+  ctx.fillStyle=player.parry?'cyan':'white';
+  ctx.beginPath();
+  ctx.arc(player.x,player.y,10,0,Math.PI*2);
+  ctx.fill();
+
+  bullets.forEach(b=>{
+   ctx.fillStyle=b.parried?'orange':'red';
+   ctx.beginPath();
+   ctx.arc(b.x,b.y,5,0,Math.PI*2);
+   ctx.fill();
+  });
+}
+
+let timer=0;
+function loop(){
+  const elapsed=Math.floor((Date.now()-startTime)/1000);
+  const difficulty=1+elapsed*0.2;
+
+  timer++;
+
+  if(timer%(7/Math.min(difficulty,6))<1){
+   for(let i=0;i<Math.floor(difficulty);i++){
+     spawnBullet(difficulty);
+   }
+  }
+
+  if(timer%120===0){
+   spawnCirclePattern(300,200,10+Math.floor(difficulty*5),2+difficulty*0.5);
+  }
+
+  update();
+  draw();
+
+  // ✅ 점수 공식 적용
+  score = elapsed * 10 + parryCount * 10;
+
+  document.getElementById('time').textContent=elapsed;
+  document.getElementById('score').textContent=score;
+  document.getElementById('cool').textContent=Math.max(0,((parryCooldown-(Date.now()-lastParry))/1000).toFixed(1));
+
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
